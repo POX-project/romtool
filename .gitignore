@@ -1,0 +1,42 @@
+# Root compiled output
+/bin/
+romtool/romtool
+portlab/portlab
+
+# Large working, project, and donor directories
+projects/
+output/
+donors/
+original images/
+logs/
+
+# Keystores, signing keys, and APK builder jars
+toolkit/builder/
+
+# Ephemeral testing images and dumps
+adv-env.img
+extra
+header
+kernel
+ramdisk.cpio
+*.img
+*.bin
+*.zip
+*.br
+*.dat
+*.new.dat
+*.transfer.list
+
+# Unrelated app/overlay test trees
+src_apps/
+src_overlays/
+test_overlay/
+
+# Python & editor files
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+*~
+*.log
+scratch_*.py

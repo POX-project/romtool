@@ -1,0 +1,94 @@
+name: Build and Release ROM Tool
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build romtool Binary & Toolkit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: 'romtool/go.sum'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full tar
+
+      - name: Build romtool Statically
+        run: |
+          chmod +x build.sh run.sh
+          ./build.sh
+
+      - name: Prepare Release Archive & Checksums
+        run: |
+          mkdir -p out
+          tar -czvf out/romtool-linux-x86_64.tar.gz bin/romtool toolkit/ run.sh README.md LICENSE
+          (cd out && sha256sum romtool-linux-x86_64.tar.gz > romtool-linux-x86_64.tar.gz.sha256)
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: romtool-linux-x86_64
+          path: |
+            out/*.tar.gz
+            out/*.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish Rolling Release (Main Branch)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "ROM Tool (Latest Continuous Build)"
+          body: |
+            ### Automated Continuous Build
+            - **Commit**: `${{ github.sha }}`
+            - **Branch**: `main`
+            - **Package**: `romtool-linux-x86_64.tar.gz` (Standalone Go binary + portable dev toolkit).
+            - **Capabilities**: Dynamic Partitions, EROFS, EXT4, Sparse Dat, Boot/Recovery repack, Brotli.
+          files: |
+            out/romtool-linux-x86_64.tar.gz
+            out/romtool-linux-x86_64.tar.gz.sha256
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Tagged Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/romtool-linux-x86_64.tar.gz
+            out/romtool-linux-x86_64.tar.gz.sha256
+          name: "ROM Tool ${{ github.ref_name }}"
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
